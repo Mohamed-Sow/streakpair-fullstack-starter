@@ -1,179 +1,207 @@
-# Backend Structure Document
+# Backend Structure Document for StreakPair Social Accountability App
 
-This document outlines the backend architecture, hosting, and infrastructure for the **codeguide-starter** project. It uses plain language so anyone can understand how the backend is set up and how it supports the application.
+This document outlines the backend architecture, database design, API endpoints, hosting setup, infrastructure components, security measures, and operational practices for the StreakPair application. It’s written in everyday language so everyone on the team can understand how the backend is organized and why each choice was made.
 
 ## 1. Backend Architecture
 
-- **Framework and Design Pattern**
-  - We use **Next.js API Routes** to handle all server-side logic. These routes live alongside the frontend code in the same repository, making development and deployment simpler.
-  - The backend follows a **layered pattern**:
-    1. **API Layer**: Receives requests (login, registration, data fetch).  
-    2. **Service Layer**: Contains the core business logic (user validation, password hashing).  
-    3. **Data Access Layer**: Talks to the database via a simple ORM (e.g., Prisma or TypeORM).
+### Overview
+- We use Next.js (App Router) as our server framework. It handles both front-end pages and backend API routes in one codebase.  
+- Language: TypeScript, for catching errors early and making the code easier to maintain.  
+- We follow a service-oriented pattern: API routes call service functions, services call the database via Drizzle ORM.  
 
-- **Scalability**
-  - Stateless API routes can scale horizontally—new instances can spin up on demand.  
-  - We can add caching or a message queue (e.g., Redis or RabbitMQ) without changing the core code.
-
-- **Maintainability**
-  - Code for each feature is grouped by route (authentication, dashboard).  
-  - A service layer separates complex logic from request handling.
-
-- **Performance**
-  - Lightweight Node.js handlers keep response times low.  
-  - Future use of database connection pooling and Redis for caching repeated queries.
+### Key Benefits
+- Scalability: Serverless or containerized Next.js endpoints can scale independently based on traffic.  
+- Maintainability: Type-safe services and clear folder structure—`/app/api`, `/lib/services`, `/db`—keep code organized.  
+- Performance: Server Components in Next.js fetch data on the server, reducing bundle size on the client.  
 
 ## 2. Database Management
 
-- **Database Choice**
-  - We recommend **PostgreSQL** for structured data and reliable transactions.  
-  - In-memory caching can be added later with **Redis** for session tokens or frequently read data.
+### Technology Stack
+- SQL database: PostgreSQL hosted on AWS RDS.  
+- ORM: Drizzle ORM, a type-safe library that maps TypeScript types to database tables.  
 
-- **Data Storage and Access**
-  - Use an ORM like **Prisma** or **TypeORM** to map JavaScript/TypeScript objects to database tables.
-  - Connection pooling ensures efficient use of database connections under load.
-  - Migrations track schema changes over time, keeping development, staging, and production in sync.
-
-- **Data Practices**
-  - Passwords are never stored in plain text—they are salted and hashed with **bcrypt** before saving.
-  - All outgoing data is typed and validated to prevent malformed records.
+### Data Practices
+- Structured data: All core entities (users, streaks, groups, etc.) live in relational tables.  
+- Migrations: We track schema changes in version-controlled migration scripts.  
+- Indexes: We add indexes on foreign keys and frequently queried fields (e.g., `userId`, `streakId`).  
+- Backups: Automated daily backups via RDS snapshots.  
 
 ## 3. Database Schema
 
-### Human-Readable Format
+Below is a human-readable description of the main tables, followed by SQL definitions.
 
-- **Users**
-  - **id**: Unique identifier  
-  - **email**: User’s email address (unique)  
-  - **password_hash**: Securely hashed password  
-  - **created_at**: Account creation timestamp
-
-- **Sessions**
-  - **id**: Unique session record  
-  - **user_id**: Links to a user  
-  - **token**: Random string for authentication  
-  - **expires_at**: When the token stops working  
-  - **created_at**: When the session was created
-
-- **DashboardItems** *(optional for dynamic data)*
-  - **id**: Unique record  
-  - **title**: Item title  
-  - **content**: Item details  
-  - **created_at**: When the item was added
+### Tables and Relationships (Human-Readable)
+- **users**: Stores each person’s login info and profile.  
+- **streaks**: Defines a paired streak or group streak.  
+- **streak_participants**: Links users to streaks, recording join date and role.  
+- **check_ins**: Logs each daily check-in by a user for a streak.  
+- **groups**: (Optional) Defines larger groups like squads or tribes.  
+- **group_members**: Links users to groups.  
+- **subscriptions**: Tracks a user’s Stripe subscription status.  
+- **payments**: Records individual payment events tied to subscriptions.  
 
 ### SQL Schema (PostgreSQL)
+
 ```sql
 -- Users table
 CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email            TEXT UNIQUE NOT NULL,
+  password_hash    TEXT NOT NULL,
+  name             TEXT,
+  created_at       TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at       TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- Sessions table
-CREATE TABLE sessions (
-  id SERIAL PRIMARY KEY,
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) UNIQUE NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- Streaks table
+CREATE TABLE streaks (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name             TEXT NOT NULL,
+  created_by       UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at       TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at       TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- Dashboard items table
-CREATE TABLE dashboard_items (
-  id SERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- Streak participants
+CREATE TABLE streak_participants (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  streak_id        UUID REFERENCES streaks(id) ON DELETE CASCADE,
+  user_id          UUID REFERENCES users(id) ON DELETE CASCADE,
+  role             TEXT    -- e.g., "owner" or "partner"
 );
-```  
+
+-- Daily check-ins
+CREATE TABLE check_ins (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  streak_id        UUID REFERENCES streaks(id) ON DELETE CASCADE,
+  user_id          UUID REFERENCES users(id) ON DELETE CASCADE,
+  check_in_date    DATE NOT NULL,
+  created_at       TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Groups (squads/tribes)
+CREATE TABLE groups (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name             TEXT NOT NULL,
+  type             TEXT CHECK (type IN ('squad','tribe')) NOT NULL,
+  created_by       UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at       TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Group members
+CREATE TABLE group_members (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id         UUID REFERENCES groups(id) ON DELETE CASCADE,
+  user_id          UUID REFERENCES users(id) ON DELETE CASCADE,
+  role             TEXT    -- e.g., "member", "admin"
+);
+
+-- Subscriptions (Stripe)
+CREATE TABLE subscriptions (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id              UUID REFERENCES users(id) ON DELETE CASCADE,
+  stripe_subscription  TEXT UNIQUE NOT NULL,
+  status               TEXT NOT NULL,
+  current_period_start TIMESTAMP WITH TIME ZONE,
+  current_period_end   TIMESTAMP WITH TIME ZONE
+);
+
+-- Payment events
+CREATE TABLE payments (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subscription_id      UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  amount               NUMERIC(10,2) NOT NULL,
+  currency             TEXT NOT NULL,
+  status               TEXT NOT NULL,
+  payment_date         TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+```
 
 ## 4. API Design and Endpoints
 
-- **Approach**: We follow a **RESTful** style, grouping related endpoints under `/api` directories.
+We use RESTful API routes under `/app/api`. Each route lives in its own folder in Next.js App Router.
 
-- **Key Endpoints**
-  - `POST /api/auth/register`  
-    • Accepts `{ email, password }`  
-    • Creates a new user and issues a session token  
-  - `POST /api/auth/login`  
-    • Accepts `{ email, password }`  
-    • Verifies credentials and returns a session token  
-  - `POST /api/auth/logout`  
-    • Invalidates the session token on the server  
-  - `GET /api/dashboard/data`  
-    • Requires a valid session  
-    • Returns user-specific data or dashboard items  
+### Authentication (Better Auth)
+- `POST /api/auth/email/send` — Send magic link to user’s email.  
+- `POST /api/auth/email/verify` — Verify link and create session.  
 
-- **Communication**
-  - Frontend sends JSON requests; backend replies with JSON and appropriate HTTP status codes.  
-  - Protected routes check for a valid session token (in cookies or Authorization header).
+### Streak Management
+- `GET /api/streaks` — List all streaks for the logged-in user.  
+- `POST /api/streaks` — Create a new streak.  
+- `GET /api/streaks/[streakId]` — Get details of a single streak.  
+- `PUT /api/streaks/[streakId]` — Update streak metadata.  
+- `DELETE /api/streaks/[streakId]` — Remove a streak.  
+
+### Daily Check-Ins
+- `POST /api/streaks/[streakId]/checkin` — Log today’s check-in for the user.  
+- `GET /api/streaks/[streakId]/checkins` — Fetch check-in history.  
+
+### Group Collaboration
+- `GET /api/groups` — List user’s groups.  
+- `POST /api/groups` — Create a squad or tribe.  
+- `POST /api/groups/[groupId]/members` — Invite or add a member.  
+- `DELETE /api/groups/[groupId]/members/[memberId]` — Remove a member.  
+
+### Monetization (Stripe)
+- `POST /api/stripe/create-subscription` — Initialize a Stripe checkout session.  
+- `POST /api/webhooks/stripe` — Handle incoming Stripe events (payments, cancellations).  
 
 ## 5. Hosting Solutions
 
-- **Cloud Provider**:  
-  - **Vercel** (recommended) offers seamless Next.js deployments, auto-scaling, and built-in CDN.  
-  - Alternatively, **Netlify** or any Node.js-capable host will work.
+We host our backend on AWS using these services:
+- **AWS ECS Fargate**: Runs Dockerized Next.js containers without managing servers.  
+- **AWS RDS (PostgreSQL)**: Managed relational database with backups and replicas.  
+- **Amazon S3 & CloudFront**: Static assets (images, fonts) are stored in S3 and distributed via CloudFront.  
 
-- **Benefits**
-  - **Reliability**: Global servers and failover across regions.  
-  - **Scalability**: Auto-scale serverless functions based on traffic.  
-  - **Cost-Effectiveness**: Pay-per-use model means low cost for small projects.
+Benefits:
+- Reliability: AWS SLAs guarantee 99.9%+ uptime.  
+- Scalability: Fargate auto-scales tasks based on CPU and memory.  
+- Cost-effectiveness: You pay only for the resources you use.  
 
 ## 6. Infrastructure Components
 
-- **Load Balancer**
-  - Provided by the hosting platform—distributes API requests across function instances.
+- **Load Balancer (ALB)**: Distributes traffic across Fargate tasks for high availability.  
+- **Content Delivery Network (CloudFront)**: Delivers static assets with low latency worldwide.  
+- **Caching (ElastiCache Redis)**: Caches session and frequently accessed data (e.g., streak summaries) to reduce database load.  
+- **Container Registry (ECR)**: Stores Docker images for our services.  
+- **DNS (Route 53)**: Manages domain and SSL certificates.  
 
-- **CDN (Content Delivery Network)**
-  - Vercel’s global edge network caches static assets (CSS, JS, images) for faster page loads.
-
-- **Caching**
-  - **Redis** (optional) for session storage or caching dashboard queries to reduce database load.
-
-- **Object Storage**
-  - For file uploads or backups, integrate with AWS S3 or similar services.
-
-- **Message Queue**
-  - In future, use **RabbitMQ** or **Kafka** for background tasks (e.g., email notifications).
+These components work together to ensure fast response times, high uptime, and a smooth user experience.
 
 ## 7. Security Measures
 
-- **Authentication & Authorization**
-  - Passwords hashed with **bcrypt** and salted.  
-  - Session tokens stored in secure, HttpOnly cookies or Authorization headers.  
-  - Protected endpoints verify tokens before proceeding.
-
-- **Data Encryption**
-  - **HTTPS/TLS** encrypts data in transit.  
-  - Database connections use SSL to encrypt data between the app and the database.
-
-- **Input Validation**
-  - Every incoming request is validated (e.g., valid email format, password length) to prevent SQL injection or other attacks.
-
-- **Web Security Best Practices**
-  - Enable **CORS** policies to limit allowed origins.  
-  - Use **CSRF tokens** or same-site cookies to prevent cross-site requests.  
-  - Set secure headers with **Helmet** or a similar middleware.
+- **HTTPS Everywhere**: All traffic is encrypted in transit with SSL/TLS.  
+- **Authentication & Authorization**: Better Auth for secure email link login; JWT tokens for session management; role checks in services.  
+- **Password Storage**: Bcrypt-hashed passwords (where applicable).  
+- **Environment Secrets**: Stored in AWS Secrets Manager and passed to containers at runtime.  
+- **Data Encryption at Rest**: RDS and S3 buckets use AES-256 encryption.  
+- **Stripe Webhook Signing**: Verify Stripe events using your endpoint secret.  
+- **Input Validation**: All API inputs are validated to prevent injection attacks.  
 
 ## 8. Monitoring and Maintenance
 
-- **Performance Monitoring**
-  - Integrate **Sentry** or **LogRocket** for real-time crash reporting and performance tracing.  
-  - Use Vercel’s built-in analytics to track request latencies and error rates.
+### Monitoring Tools
+- **AWS CloudWatch**: Collects logs, metrics, and custom alarms (CPU, memory, error rates).  
+- **Sentry**: Captures and alerts on runtime exceptions and performance issues.  
+- **Prometheus & Grafana** (optional): For custom dashboards and long-term metrics.  
 
-- **Logging**
-  - Structured logs (JSON) for all API requests and errors, shipped to a log management service like **Datadog** or **Logflare**.
-
-- **Health Checks**
-  - Define a `/health` endpoint that returns a 200 status if the service is up and the database is reachable.
-
-- **Maintenance Strategies**
-  - Automated migrations run on deploy to keep the database schema up to date.  
-  - Scheduled dependency audits and security scans (e.g., `npm audit`).
-  - Regular backups of the database (daily or weekly depending on usage).
+### Maintenance Practices
+- **Automated Backups**: Daily DB snapshots with point-in-time recovery.  
+- **Schema Migrations**: Managed through versioned Drizzle scripts.  
+- **CI/CD Pipeline**: GitHub Actions runs tests, builds Docker images, and deploys to AWS on each push to `main`.  
+- **Regular Dependency Updates**: Automated Dependabot PRs for security patches.  
 
 ## 9. Conclusion and Overall Backend Summary
 
-The backend for **codeguide-starter** is built on Next.js API Routes and Node.js, paired with PostgreSQL for data and optional Redis for caching. It follows a clear layered architecture that keeps code easy to maintain and extend. With RESTful endpoints for authentication and data, secure practices like password hashing and HTTPS, and hosting on Vercel for scalability and global performance, this setup meets the project’s goals for a fast, secure, and developer-friendly foundation. Future enhancements—such as background job queues, advanced monitoring, or richer data models—can be added without disrupting the core structure.
+The StreakPair backend is built on a modern, scalable stack:
+- Next.js with TypeScript and server-side components for fast, secure data fetching.  
+- PostgreSQL managed by Drizzle ORM for type safety and predictable database interactions.  
+- AWS infrastructure (ECS, RDS, S3, CloudFront) for reliability and cost efficiency.  
+
+Key differentiators:
+- Seamless server-client integration in Next.js App Router.  
+- Type-safe database layer with migration support.  
+- Containerized deployment on Fargate, eliminating server management.  
+- Comprehensive monitoring and security practices.
+
+This setup aligns tightly with StreakPair’s goals: empowering users to build and maintain shared streaks, delivering real-time engagement, and scaling reliably as the user base grows.

@@ -6,7 +6,8 @@ import {
     integer,
     boolean,
     index,
-    primaryKey
+    primaryKey,
+    uniqueIndex
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { relations } from "drizzle-orm";
@@ -39,6 +40,7 @@ export const streakParticipants = pgTable("streak_participants", {
 }, (table) => ({
     streakIdIdx: index("streak_participants_streak_id_idx").on(table.streakId),
     userIdIdx: index("streak_participants_user_id_idx").on(table.userId),
+    uniqueStreakUser: uniqueIndex("unique_streak_user_idx").on(table.streakId, table.userId),
 }));
 
 export const checkIns = pgTable("check_ins", {
@@ -56,6 +58,7 @@ export const checkIns = pgTable("check_ins", {
     streakIdIdx: index("check_ins_streak_id_idx").on(table.streakId),
     userIdIdx: index("check_ins_user_id_idx").on(table.userId),
     dateIdx: index("check_ins_date_idx").on(table.checkInDate),
+    uniqueStreakUserDate: uniqueIndex("unique_streak_user_date_idx").on(table.streakId, table.userId, table.checkInDate),
 }));
 
 export const invitations = pgTable("invitations", {

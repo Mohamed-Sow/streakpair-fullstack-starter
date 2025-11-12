@@ -16,22 +16,56 @@ export class StreakService {
   async createStreak(data: NewStreak & { creatorId: string }) {
     const { creatorId, ...streakData } = data;
 
-    const [newStreak] = await db.insert(streaks)
-      .values({
-        ...streakData,
-        createdBy: creatorId,
-      })
-      .returning();
+    console.log('[DEBUG] Creating streak with creatorId:', creatorId);
 
-    // Add creator as participant
-    await db.insert(streakParticipants)
-      .values({
-        streakId: newStreak.id,
-        userId: creatorId,
-        role: 'owner',
+    // Use a transaction to ensure atomicity
+    try {
+      const result = await db.transaction(async (tx) => {
+        // Create the streak
+        const [newStreak] = await tx.insert(streaks)
+          .values({
+            ...streakData,
+            createdBy: creatorId,
+          })
+          .returning();
+
+        console.log('[DEBUG] New streak created:', newStreak.id);
+
+        // Add creator as participant
+        const [participant] = await tx.insert(streakParticipants)
+          .values({
+            streakId: newStreak.id,
+            userId: creatorId,
+            role: 'owner',
+            isActive: true,  // Explicitly set isActive
+            joinedAt: new Date(),  // Explicitly set joinedAt
+          })
+          .returning();
+
+        console.log('[DEBUG] Creator added as participant:', participant);
+
+        // Verify the participant was actually created
+        const verifyParticipant = await tx.query.streakParticipants.findFirst({
+          where: and(
+            eq(streakParticipants.streakId, newStreak.id),
+            eq(streakParticipants.userId, creatorId)
+          ),
+        });
+
+        console.log('[DEBUG] Verification - participant found:', verifyParticipant);
+
+        if (!verifyParticipant) {
+          throw new Error('Failed to add creator as participant');
+        }
+
+        return { streak: newStreak, participant };
       });
 
-    return newStreak;
+      return result.streak;
+    } catch (error) {
+      console.error('[ERROR] Failed to create streak:', error);
+      throw error;
+    }
   }
 
   // Get streaks for a user
@@ -121,6 +155,8 @@ export class StreakService {
   }) {
     const { streakId, senderId, recipientEmail, message } = data;
 
+    console.log('[DEBUG] sendInvitation called with:', { streakId, senderId, recipientEmail });
+
     // Check if sender is owner or participant
     const sender = await db.query.streakParticipants.findFirst({
       where: and(
@@ -129,6 +165,14 @@ export class StreakService {
         eq(streakParticipants.isActive, true)
       ),
     });
+
+    console.log('[DEBUG] Sender participant found:', sender);
+
+    // Also check all participants for debugging
+    const allParticipants = await db.query.streakParticipants.findMany({
+      where: eq(streakParticipants.streakId, streakId),
+    });
+    console.log('[DEBUG] All participants in streak:', allParticipants);
 
     if (!sender) {
       throw new Error('Sender is not a participant in this streak');

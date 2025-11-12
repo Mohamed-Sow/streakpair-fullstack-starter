@@ -17,11 +17,15 @@ export async function POST(request: NextRequest) {
 
     const { user } = authResult;
 
+    console.log('[DEBUG] API invitation request - user:', { id: user.id, name: user.name, email: user.email });
+
     // Parse and validate request body
     const body = await request.json();
     const validatedData = sendInvitationSchema.parse(body);
 
     const { streakId, recipientEmail, message } = validatedData;
+
+    console.log('[DEBUG] Sending invitation for streak:', streakId, 'from user:', user.id);
 
     // Send invitation
     const invitation = await streakService.sendInvitation({

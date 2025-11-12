@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, RefreshCw, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import { StreakCard } from './streak-card';
 import { CheckInButton } from './check-in-button';
 import { StreakHistory } from './streak-history';
 import { PartnerStatus } from './partner-status';
+import { CreateStreakModal } from './create-streak-modal';
+import { StreakAnalytics } from './streak-analytics';
 
 interface Streak {
   id: string;
@@ -45,9 +48,18 @@ interface StreakDetails extends Streak {
 interface StreakDashboardProps {
   userId: string;
   className?: string;
+  onCreateStreak?: (data: {
+    title: string;
+    description?: string;
+    category: string;
+    type: string;
+    maxParticipants: number;
+    timezone: string;
+    reminderTime?: string;
+  }) => Promise<void>;
 }
 
-export function StreakDashboard({ userId, className }: StreakDashboardProps) {
+export function StreakDashboard({ userId, className, onCreateStreak }: StreakDashboardProps) {
   const [streaks, setStreaks] = useState<Streak[]>([]);
   const [selectedStreak, setSelectedStreak] = useState<StreakDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -147,6 +159,42 @@ export function StreakDashboard({ userId, className }: StreakDashboardProps) {
     await fetchCheckInStatus(streakId);
   };
 
+  const handleCreateStreak = async (data: {
+    title: string;
+    description?: string;
+    category: string;
+    type: string;
+    maxParticipants: number;
+    timezone: string;
+    reminderTime?: string;
+  }) => {
+    try {
+      if (onCreateStreak) {
+        // Use server action if provided
+        await onCreateStreak(data);
+      } else {
+        // Fallback to API call
+        const response = await fetch('/api/streaks', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create streak');
+        }
+      }
+
+      // Refresh streaks list
+      await fetchStreaks();
+    } catch (err) {
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchStreaks();
   }, []);
@@ -190,10 +238,15 @@ export function StreakDashboard({ userId, className }: StreakDashboardProps) {
                 Create your first streak to start building habits with a partner!
               </p>
             </div>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Streak
-            </Button>
+            <CreateStreakModal
+              onCreateStreak={handleCreateStreak}
+              trigger={
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Streak
+                </Button>
+              }
+            />
           </div>
         </CardContent>
       </Card>
@@ -223,10 +276,15 @@ export function StreakDashboard({ userId, className }: StreakDashboardProps) {
               <RefreshCw className="h-4 w-4" />
             )}
           </Button>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            New Streak
-          </Button>
+          <CreateStreakModal
+            onCreateStreak={handleCreateStreak}
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Streak
+              </Button>
+            }
+          />
         </div>
       </div>
 
@@ -259,6 +317,7 @@ export function StreakDashboard({ userId, className }: StreakDashboardProps) {
           <TabsList>
             <TabsTrigger value="status">Team Status</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
           </TabsList>
 
@@ -305,6 +364,14 @@ export function StreakDashboard({ userId, className }: StreakDashboardProps) {
             <StreakHistory
               checkIns={[]} // This would come from the check-ins history API
               participants={selectedStreak.participants}
+              timezone={selectedStreak.timezone}
+            />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <StreakAnalytics
+              streakId={selectedStreak.id}
+              userId={userId}
               timezone={selectedStreak.timezone}
             />
           </TabsContent>

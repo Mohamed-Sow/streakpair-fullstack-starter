@@ -4,9 +4,12 @@ import { authenticate } from '@/lib/auth-middleware';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params (Next.js 15 requirement)
+    const { id: streakId } = await params;
+    
     // Authenticate user
     const authResult = await authenticate(request);
     if (authResult.error) {
@@ -17,7 +20,6 @@ export async function GET(
     }
 
     const { user } = authResult;
-    const streakId = params.id;
 
     // Get check-in history for the streak
     const history = await streakService.getCheckInHistory(streakId, user.id);

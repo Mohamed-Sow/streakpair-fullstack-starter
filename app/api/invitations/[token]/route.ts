@@ -5,10 +5,11 @@ import { invitations, streaks, streakParticipants, user } from '@/db/schema';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const token = params.token;
+    // Await params (Next.js 15 requirement)
+    const { token } = await params;
 
     // Find invitation with related data
     const invitation = await db.query.invitations.findFirst({

@@ -91,17 +91,25 @@ export class StreakService {
             user: true,
           },
         },
-        _count: {
-          select: {
-            participants: {
-              where: eq(streakParticipants.isActive, true),
-            },
-          },
+        creator: true,
+        checkIns: {
+          orderBy: desc(checkIns.completedAt),
+          limit: 10,
         },
       },
     });
 
-    return streakDetails;
+    if (!streakDetails) {
+      throw new Error('Streak not found');
+    }
+
+    // Add participant count manually
+    const participantCount = streakDetails.participants.length;
+
+    return {
+      ...streakDetails,
+      participantCount,
+    };
   }
 
   // Send invitation to streak

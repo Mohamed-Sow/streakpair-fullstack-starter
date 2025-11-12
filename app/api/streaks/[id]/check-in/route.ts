@@ -5,9 +5,12 @@ import { checkInSchema } from '@/lib/validations/streak';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params (Next.js 15 requirement)
+    const { id: streakId } = await params;
+    
     // Authenticate user
     const authResult = await authenticate(request);
     if (authResult.error) {
@@ -18,7 +21,6 @@ export async function POST(
     }
 
     const { user } = authResult;
-    const streakId = params.id;
 
     // Parse and validate request body
     const body = await request.json();
@@ -68,9 +70,12 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params (Next.js 15 requirement)
+    const { id: streakId } = await params;
+    
     // Authenticate user
     const authResult = await authenticate(request);
     if (authResult.error) {
@@ -81,7 +86,6 @@ export async function GET(
     }
 
     const { user } = authResult;
-    const streakId = params.id;
 
     // Get today's check-in status for all participants
     const checkInStatus = await streakService.getTodayCheckInStatus(streakId, user.id);

@@ -7,9 +7,12 @@ import { and, gte, lte, eq, desc } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params (Next.js 15 requirement)
+    const { id: streakId } = await params;
+    
     // Authenticate user
     const authResult = await authenticate(request);
     if (authResult.error) {
@@ -20,7 +23,6 @@ export async function GET(
     }
 
     const { user } = authResult;
-    const streakId = params.id;
 
     // Get URL search params
     const { searchParams } = new URL(request.url);

@@ -155,9 +155,9 @@ export function StreakCard({
           <div className="flex -space-x-2">
             {streak.participants.slice(0, 6).map((participant) => (
               <Avatar key={participant.id} className="h-8 w-8 border-2 border-background">
-                <AvatarImage src={participant.image} alt={participant.name || participant.email} />
+                <AvatarImage src={participant.image} alt={participant.name || participant.email || 'User'} />
                 <AvatarFallback className="text-xs">
-                  {(participant.name || participant.email).charAt(0).toUpperCase()}
+                  {((participant.name || participant.email || 'U').charAt(0) || 'U').toUpperCase()}
                 </AvatarFallback>
               </Avatar>
             ))}

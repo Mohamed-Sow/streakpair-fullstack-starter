@@ -70,7 +70,7 @@ export function StreakCard({
   };
 
   const checkedInCount = streak.todayCheckIns?.filter(ci => ci.hasCheckedIn).length || 0;
-  const totalParticipants = streak.participants.length;
+  const totalParticipants = streak.participants?.length || 0;
   const checkInProgress = totalParticipants > 0 ? (checkedInCount / totalParticipants) * 100 : 0;
 
   const getCategoryColor = (category: string) => {
@@ -153,7 +153,7 @@ export function StreakCard({
             </span>
           </div>
           <div className="flex -space-x-2">
-            {streak.participants.slice(0, 6).map((participant) => (
+            {streak.participants?.slice(0, 6).map((participant) => (
               <Avatar key={participant.id} className="h-8 w-8 border-2 border-background">
                 <AvatarImage src={participant.image} alt={participant.name || participant.email || 'User'} />
                 <AvatarFallback className="text-xs">

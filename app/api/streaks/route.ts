@@ -15,6 +15,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { user } = authResult;
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Parse and validate request body
     const body = await request.json();
@@ -56,6 +63,13 @@ export async function GET(request: NextRequest) {
     }
 
     const { user } = authResult;
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Get user's streaks
     const streaks = await streakService.getUserStreaks(user.id);

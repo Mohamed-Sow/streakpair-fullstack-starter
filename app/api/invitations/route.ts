@@ -16,6 +16,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { user } = authResult;
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found in session' },
+        { status: 401 }
+      );
+    }
 
     console.log('[DEBUG] API invitation request - user:', { id: user.id, name: user.name, email: user.email });
 

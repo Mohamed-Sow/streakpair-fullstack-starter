@@ -13,7 +13,7 @@ import {
 
 export class StreakService {
   // Create a new streak
-  async createStreak(data: NewStreak & { creatorId: string }) {
+  async createStreak(data: Omit<NewStreak, 'createdBy'> & { creatorId: string }) {
     const { creatorId, ...streakData } = data;
 
     console.log('[DEBUG] Creating streak with creatorId:', creatorId);

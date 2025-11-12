@@ -11,6 +11,7 @@ export const createStreakSchema = z.object({
 });
 
 export const sendInvitationSchema = z.object({
+  streakId: z.string().uuid('Invalid streak ID'),
   recipientEmail: z.string().email('Invalid email address'),
   message: z.string().max(500, 'Message must be less than 500 characters').optional(),
 });

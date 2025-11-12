@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { StreakDashboard } from "@/components/streak/streak-dashboard"
 import { CreateStreakModal } from "@/components/streak/create-streak-modal"
@@ -6,16 +7,16 @@ import { streakService } from "@/lib/services/streak.service"
 import { createStreakSchema } from "@/lib/validations/streak"
 
 export default async function Page() {
-  // Get the current user session
-  const session = await auth()
+  const session = await auth.api.getSession({
+    headers: await headers()
+  })
 
   if (!session?.user?.id) {
-    redirect("/login")
+    redirect("/sign-in")
   }
 
   const userId = session.user.id
 
-  // Handle streak creation
   const handleCreateStreak = async (data: {
     title: string
     description?: string
@@ -30,7 +31,7 @@ export default async function Page() {
     try {
       const validatedData = createStreakSchema.parse({
         ...data,
-        creatorId: userId,
+        createdBy: userId,
       })
 
       await streakService.createStreak(validatedData)

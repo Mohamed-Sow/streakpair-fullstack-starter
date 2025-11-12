@@ -1,90 +1,110 @@
-# Tech Stack Document
+# Tech Stack Document for StreakPair
 
-This document explains the key technologies chosen for the **codeguide-starter** project. It’s written in everyday language so anyone—technical or not—can understand why each tool was picked and how it supports the application.
+This document explains the technology choices behind the **StreakPair** social accountability app in plain language. It shows how each part of the stack fits together to deliver a fast, reliable, and secure experience for users.
 
 ## 1. Frontend Technologies
-The frontend is everything the user sees and interacts with. For this project, we’ve used:
 
-- **Next.js (App Router)**
-  - A React framework that makes page routing, server-side rendering, and API routes very simple.
-  - Enhances user experience by pre-rendering pages on the server or at build time, leading to faster initial load.
-- **React 18**
-  - The underlying library for building user interfaces with reusable components.
-  - Provides a smooth, interactive experience thanks to its virtual DOM and modern hooks.
-- **TypeScript**
-  - A superset of JavaScript that adds types (labels for data).
-  - Helps catch errors early during development and makes the code easier to maintain.
-- **CSS (globals.css & theme.css)**
-  - **globals.css** applies base styles (fonts, colors, resets) across the entire app.
-  - **dashboard/theme.css** defines the look and feel specific to the dashboard area.
-  - This separation keeps styles organized and avoids accidental style conflicts.
+The frontend is everything the user sees and interacts with in their browser or on their phone. We chose tools that make it easy to build a polished, responsive, and accessible interface.
 
-By combining these tools, we have a clear structure (Next.js folders for pages and layouts), safer code (TypeScript), and flexible styling with vanilla CSS.
+- **Next.js (App Router)**  
+  A modern web framework that handles page routing, server-side rendering, and API routes all in one place. It helps us load pages quickly and serve up fresh data when users need it.
+
+- **TypeScript**  
+  A version of JavaScript with built-in checks for common coding mistakes. It gives us confidence that components and data structures (like users, streaks, and payments) fit together correctly.
+
+- **Tailwind CSS v4**  
+  A utility-first styling tool that lets us build a responsive, mobile-first design with pre-defined classes. It speeds up development and keeps our styles consistent.
+
+- **shadcn/ui**  
+  A library of ready-made, accessible React components (buttons, forms, cards, tables). We use these building blocks to create a polished user interface without recreating common elements from scratch.
+
+- **next-themes**  
+  A simple way to offer dark mode and light mode toggles. Users can pick their preferred theme, and the app remembers their choice.
 
 ## 2. Backend Technologies
-The backend handles data, user accounts, and the logic behind the scenes. Our choices here are:
 
-- **Next.js API Routes**
-  - Allows us to write server-side code (`route.ts` files) alongside our frontend in the same project.
-  - Runs on Node.js, so we can handle requests like sign-up, sign-in, and data fetching in one place.
-- **Node.js Runtime**
-  - The JavaScript environment on the server that executes our API routes.
-- **bcrypt** (npm package)
-  - A library for hashing passwords securely before storing them.
-  - Ensures that even if someone got access to our data, raw passwords aren’t visible.
-- **(Optional) NextAuth.js or JWT**
-  - While this starter kit shows a custom authentication flow, it can easily integrate services like NextAuth.js for email-based login or JWT (JSON Web Tokens) for stateless sessions.
+The backend powers the app’s logic, data, and security. It handles user accounts, streak tracking, payments, and more behind the scenes.
 
-These components work together to receive user credentials, verify or store them securely, manage sessions or tokens, and deliver protected data back to the frontend.
+- **Node.js & Next.js API Routes**  
+  Our server code runs on Node.js and lives alongside the frontend in Next.js API routes. This lets us write server logic (check-in validation, payment webhooks) in the same codebase as our pages.
+
+- **Better Auth (Email/Password)**  
+  Provides secure, out-of-the-box user registration, login, password reset, and session management. We can extend it to add social logins (Google, Apple) later.
+
+- **Drizzle ORM & PostgreSQL**  
+  - *PostgreSQL*: A reliable, open-source database to store users, streaks, groups, check-ins, and payment records.  
+  - *Drizzle ORM*: A type-safe tool that lets us define our database structure in code and run queries confidently.
+
+- **Utility Libraries**  
+  - `cn` helper: Simplifies combining Tailwind classes based on component state.  
+  - Custom `streak-logic` module: Houses core business rules (when a streak breaks, how to calculate progress).
 
 ## 3. Infrastructure and Deployment
-Infrastructure covers where and how we host the app, as well as how changes get delivered:
 
-- **Git & GitHub**
-  - Version control system (Git) and remote hosting (GitHub) keep track of all code changes and allow team collaboration.
-- **Vercel (or Netlify)**
-  - A popular hosting service optimized for Next.js, with one-click deployments and global content delivery.
-  - Automatically rebuilds and deploys the site whenever code is pushed to the main branch.
-- **GitHub Actions (CI/CD)**
-  - Automates tasks like linting (ESLint), formatting (Prettier), and running any tests you add.
-  - Ensures that only clean, tested code goes live.
+These choices ensure the app is easy to deploy, update, and scale as more users join.
 
-Together, these tools provide a reliable, scalable setup where every code change is tested and deployed quickly, with minimal manual work.
+- **Version Control (Git + GitHub)**  
+  We store all code in GitHub for collaboration, code reviews, and history tracking.
+
+- **Containerization (Docker & Docker Compose)**  
+  Encapsulates our database and local services so every developer works in the same environment. No more “it works on my machine” surprises.
+
+- **Hosting Platform (Vercel or any Docker-friendly host)**  
+  Deploys the Next.js app globally, serving pages from the closest server to each user. We can also choose services like AWS ECS, Heroku, or DigitalOcean.
+
+- **CI/CD Pipeline (GitHub Actions)**  
+  - Automatically runs tests and code linters on each code change.  
+  - Builds and deploys the app when updates are merged, ensuring a consistent release process.
 
 ## 4. Third-Party Integrations
-While this starter kit is minimal by design, it already includes or can easily add:
 
-- **bcrypt**
-  - For secure password hashing (included as an npm dependency).
-- **NextAuth.js** (optional)
-  - A full-featured authentication library supporting email/password, OAuth, and more.
-- **Sentry or LogRocket** (optional)
-  - For real-time error tracking and performance monitoring in production.
+These services extend the app’s core capabilities without reinventing the wheel.
 
-These integrations help extend the app’s capabilities without building every feature from scratch.
+- **Stripe**  
+  Handles subscription billing and one-time payments. We use secure webhooks to track successful charges and cancellations.
+
+- **Twilio**  
+  Sends SMS reminders for daily check-ins and upcoming streak deadlines. Users opt-in and manage their phone settings in the app.
+
+- **Real-Time Updates (Pusher or Ably)**  
+  Powers live notifications when a partner checks in, boosting engagement by showing instant feedback.
+
+- **Analytics (PostHog, Mixpanel, or Vercel Analytics)**  
+  Tracks user behavior—like streak completion rates and feature usage—to inform product decisions and measure growth.
 
 ## 5. Security and Performance Considerations
-We’ve baked in several measures to keep users safe and the app running smoothly:
 
-Security:
-- Passwords are never stored in plain text—bcrypt hashes them with a random salt.
-- API routes can implement CSRF protection and input validation to block malicious requests.
-- Session tokens or cookies are marked secure and HttpOnly to prevent theft via JavaScript.
+We’ve built in layers of security and optimized performance to keep data safe and users happy.
 
-Performance:
-- Server-side rendering (SSR) and static site generation (SSG) in Next.js deliver pages faster.
-- Code splitting and lazy-loaded components ensure users only download what they need.
-- Global CSS and theme files are small and cached by the browser for quick repeat visits.
+- **Authentication & Authorization**  
+  - Secure email/password handling with hashed passwords and session cookies.  
+  - Plans to add OAuth (Google, Apple) for one-click sign-in.
 
-These strategies work together to give users a fast, secure experience every time.
+- **Data Protection**  
+  - Environment variables for secret keys (Stripe, Twilio).  
+  - HTTPS by default on production to encrypt data in transit.
+
+- **Error Handling & Feedback**  
+  - Consistent error responses from API routes.  
+  - User-friendly toast notifications for successes and failures (payments, check-ins).
+
+- **Performance Optimizations**  
+  - Server Components in Next.js fetch data on the server, reducing bundle size and speeding up page loads.  
+  - Tailwind’s utility classes and tree-shaking ensure CSS bundles stay small.  
+  - Database indexing on key fields (user IDs, timestamps) for fast lookups.
+
+- **Testing Strategy**  
+  - *Unit Tests*: Jest or Vitest for core business logic (streak rules, date handling).  
+  - *Component Tests*: React Testing Library for UI elements.  
+  - *End-to-End Tests*: Playwright or Cypress to simulate user flows (sign-up, check-in, payment).
 
 ## 6. Conclusion and Overall Tech Stack Summary
-In building **codeguide-starter**, we chose technologies that:
 
-- Align with modern web standards (Next.js, React, TypeScript).
-- Provide a clear, file-based project structure for rapid onboarding.
-- Offer built-in support for server-side rendering, API routes, and static assets.
-- Emphasize security through password hashing, session management, and safe defaults.
-- Enable easy scaling and future enhancements via modular code and optional integrations.
+StreakPair’s foundation leverages a modern, full-stack template that:
 
-This stack strikes a balance between simplicity for newcomers and flexibility for experienced teams. It accelerates development of a secure authentication flow and a polished dashboard, while leaving room to plug in databases, test suites, and advanced features as the project grows.
+- Delivers a **fast, responsive user interface** using Next.js, React components, and Tailwind CSS.  
+- Provides **robust backend services** with TypeScript, Drizzle ORM/MySQL, and secure authentication out of the box.  
+- Ensures **reliable deployments** and developer consistency through Docker, GitHub Actions, and container-friendly hosting.  
+- Integrates critical features like **payments (Stripe)**, **notifications (Twilio, Pusher)**, and **analytics** without extra overhead.
+
+This combination accelerates development while maintaining high quality, security, and scalability—perfect for launching and growing the StreakPair social accountability app.

@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id
+  email         String    @unique
+  name          String?
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  Profile       Profile?
+  streakMembers StreakMember[]
+  checkIns      CheckIn[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("verification")
+}
+
+model Profile {
+  id     Int    @id @default(autoincrement())
+  handle String @unique
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+}
+
+model Streak {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  emoji           String?
+  frequency       String   @default("daily")
+  startDate       DateTime @default(now())
+  endDate         DateTime?
+  createdBy       String
+  inviteCode      String   @unique @default(cuid())
+  isActive        Boolean  @default(true)
+
+  // Competition features
+  isCompetition   Boolean  @default(false)
+  competitionType String?  // "duo", "team", "ffa" (free-for-all)
+  rewardPool      Float    @default(0)
+  stakesPerPerson Float    @default(0)
+  punishment      String?  // "monetary", "none", "custom"
+  customPunishment String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  members         StreakMember[]
+  checkIns        CheckIn[]
+
+  @@map("streak")
+}
+
+model StreakMember {
+  id        String   @id @default(cuid())
+  streakId  String
+  userId    String
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+
+  streak    Streak   @relation(fields: [streakId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([streakId, userId])
+  @@map("streak_member")
+}
+
+model CheckIn {
+  id          String   @id @default(cuid())
+  streakId    String
+  userId      String
+  date        String
+  photoUrl    String?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  streak      Streak   @relation(fields: [streakId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([streakId, userId, date])
+  @@map("check_in")
+}
